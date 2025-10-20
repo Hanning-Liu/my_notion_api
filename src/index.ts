@@ -148,7 +148,6 @@ export async function syncEvents() {
     const cachedEvents = await db.select().from(eventsTable);
     // Handle new, updated, and deleted events
     for (const [i, event] of allNotionEvents.entries()) {
-      console.log(`⏳ [${i + 1}/${allNotionEvents.length}] Creating event: ${event.title}`);
       const cached = cachedEvents.find(c => c.id === event.id);
       // 1. New event: Create Google Calendar event
       if (!cached) {
