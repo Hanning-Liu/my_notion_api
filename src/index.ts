@@ -30,16 +30,13 @@ const envSchema = z.object({
 
 // Parse and validate environment variables
 const env = envSchema.parse(process.env);
-console.log('✅ Environment variables validated');
 
 // Initialize Notion client
 const notion = new Client({
   auth: env.NOTION_API_KEY
 });
-console.log('✅ Notion client initialized');
 
 // Set up Google Calendar API
-console.log('Initializing Google OAuth2 client...');
 const oauth2Client = new google.auth.OAuth2(
   env.GOOGLE_CLIENT_ID,
   env.GOOGLE_CLIENT_SECRET
@@ -48,23 +45,18 @@ const oauth2Client = new google.auth.OAuth2(
 oauth2Client.setCredentials({
   refresh_token: env.GOOGLE_REFRESH_TOKEN
 });
-console.log('✅ Google OAuth2 client set up');
 
 const calendar = google.calendar({
   version: 'v3',
 });
-console.log('✅ Google Calendar client initialized');
 
 // Initialize Turso database
-console.log('Initializing Turso client...');
 const client = createClient({
   url: env.TURSO_DATABASE_URL,
   authToken: env.TURSO_AUTH_TOKEN
 });
-console.log('✅ Turso client initialized');
 
 const db = drizzle({ client });
-console.log('✅ Drizzle ORM initialized');
 
 interface NotionEvent {
   id: string;
