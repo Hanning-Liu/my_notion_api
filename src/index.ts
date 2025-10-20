@@ -144,10 +144,8 @@ export async function syncEvents() {
     // Flatten the array of events from multiple data sources
     const allNotionEvents = notionEvents.flat();
 
-    console.log(allNotionEvents.length)
     // Get current cache from database
     const cachedEvents = await db.select().from(eventsTable);
-    console.log(cachedEvents.length)
     // Handle new, updated, and deleted events
     for (const [i, event] of allNotionEvents.entries()) {
       console.log(`⏳ [${i + 1}/${allNotionEvents.length}] Creating event: ${event.title}`);
@@ -163,7 +161,6 @@ export async function syncEvents() {
             end: { dateTime: event.endDate, timeZone: event.timeZone || 'Asia/Shanghai' },
           },
         });
-        console.log(`✅ Google event created: ${event.title}`);
         await new Promise(res => setTimeout(res, 500)); // 0.5s delay
         await db.insert(eventsTable).values({
           id: event.id,
