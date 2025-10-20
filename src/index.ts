@@ -52,8 +52,6 @@ console.log('✅ Google OAuth2 client set up');
 
 const calendar = google.calendar({
   version: 'v3',
-  auth: oauth2Client,
-  timeout: 20000, // 20 seconds
 });
 console.log('✅ Google Calendar client initialized');
 
@@ -157,6 +155,7 @@ export async function syncEvents() {
       // 1. New event: Create Google Calendar event
       if (!cached) {
         const gEvent = await calendar.events.insert({
+          auth: oauth2Client,
           calendarId: env.GOOGLE_CALENDAR_ID,
           requestBody: {
             summary: event.title,
@@ -181,6 +180,7 @@ export async function syncEvents() {
       // 2. Updated event: Update Google Calendar event
       else if (cached.lastEditedTime !== event.lastEditedTime) {
         await calendar.events.update({
+          auth: oauth2Client,
           calendarId: env.GOOGLE_CALENDAR_ID,
           eventId: cached.googleEventId || '',
           requestBody: {
@@ -210,6 +210,7 @@ export async function syncEvents() {
 
       if (!stillExistsInNotion && cachedEvent.googleEventId) {
         await calendar.events.delete({
+          auth: oauth2Client,
           calendarId: env.GOOGLE_CALENDAR_ID,
           eventId: cachedEvent.googleEventId,
         });
