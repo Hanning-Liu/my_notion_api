@@ -6,13 +6,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (req.method !== 'POST') {
             return res.status(405).json({ error: 'Method Not Allowed' });
         }
-
+        console.log(req.body);
         // Optionally: validate the webhook signature / origin from Notion
         if (req.body?.type === 'verification') {
+
             return res.status(200).json({ success: true });
         }
 
-        await syncEvents();  // Run your existing sync logic
+        // await syncEvents();  // Run your existing sync logic
         return res.status(200).json({ success: true });
     } catch (err: any) {
         console.error('Webhook handler error:', err);
