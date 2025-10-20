@@ -45,13 +45,13 @@ const oauth2Client = new google.auth.OAuth2(
   env.GOOGLE_CLIENT_SECRET
 );
 
-oauth2Client.setCredentials({ 
-  refresh_token: env.GOOGLE_REFRESH_TOKEN 
+oauth2Client.setCredentials({
+  refresh_token: env.GOOGLE_REFRESH_TOKEN
 });
 console.log('✅ Google OAuth2 client set up');
 
-const calendar = google.calendar({ 
-  version: 'v3', 
+const calendar = google.calendar({
+  version: 'v3',
   auth: oauth2Client,
   timeout: 20000, // 20 seconds
 });
@@ -59,8 +59,8 @@ console.log('✅ Google Calendar client initialized');
 
 // Initialize Turso database
 console.log('Initializing Turso client...');
-const client = createClient({ 
-  url: env.TURSO_DATABASE_URL, 
+const client = createClient({
+  url: env.TURSO_DATABASE_URL,
   authToken: env.TURSO_AUTH_TOKEN
 });
 console.log('✅ Turso client initialized');
@@ -83,9 +83,9 @@ async function fetchNotionEvents(dataSourceId: string): Promise<NotionEvent[]> {
   const allResults: NotionEvent[] = [];
 
   const sort: { property: string; direction: 'ascending' | 'descending' } = {
-  property: 'Date',
-  direction: 'ascending'
-};
+    property: 'Date',
+    direction: 'ascending'
+  };
 
 
   while (hasMore) {
@@ -129,109 +129,109 @@ async function fetchNotionEvents(dataSourceId: string): Promise<NotionEvent[]> {
 // Collect all defined datasource IDs
 const notionDataSourceIds = [
   env.DATASOURCE_ID_1,
-//   env.DATASOURCE_ID_2,
-//   env.DATASOURCE_ID_3,
-//   env.DATASOURCE_ID_4,
-//   env.DATASOURCE_ID_5,
-//   env.DATASOURCE_ID_6,
-//   env.DATASOURCE_ID_7,
+  env.DATASOURCE_ID_2,
+  env.DATASOURCE_ID_3,
+  env.DATASOURCE_ID_4,
+  env.DATASOURCE_ID_5,
+  env.DATASOURCE_ID_6,
+  env.DATASOURCE_ID_7,
 ].filter((id): id is string => !!id); // Remove undefined values
 
-async function syncEvents() {
+export async function syncEvents() {
   // Fetch events from all data sources concurrently
-    try{
-        const notionEvents = await Promise.all(
-        notionDataSourceIds.map(fetchNotionEvents)
-        );
-        // Flatten the array of events from multiple data sources
-        const allNotionEvents = notionEvents.flat();
-        
-        console.log(allNotionEvents.length)
-        // Get current cache from database
-        const cachedEvents = await db.select().from(eventsTable);
-        console.log(cachedEvents.length)
-        // Handle new, updated, and deleted events
-        for (const [i, event] of allNotionEvents.entries()) {
-          console.log(`⏳ [${i + 1}/${allNotionEvents.length}] Creating event: ${event.title}`);
-          const cached = cachedEvents.find(c => c.id === event.id);
-          // 1. New event: Create Google Calendar event
-          if (!cached) {
-            const gEvent = await calendar.events.insert({
-              calendarId: env.GOOGLE_CALENDAR_ID,
-              requestBody: {
-                summary: event.title,
-                start: { dateTime: event.startDate, timeZone: event.timeZone || 'Asia/Shanghai' },
-                end: { dateTime: event.endDate, timeZone: event.timeZone || 'Asia/Shanghai' },
-              },
-            });
-            console.log(`✅ Google event created: ${event.title}`);
-            await new Promise(res => setTimeout(res, 500)); // 0.5s delay
-            await db.insert(eventsTable).values({
-              id: event.id,
-              title: event.title,
-              startDate: event.startDate,
-              endDate: event.endDate,
-              timeZone: event.timeZone,
-              lastEditedTime: event.lastEditedTime,
-              googleEventId: gEvent.data.id || null
-            });
+  try {
+    const notionEvents = await Promise.all(
+      notionDataSourceIds.map(fetchNotionEvents)
+    );
+    // Flatten the array of events from multiple data sources
+    const allNotionEvents = notionEvents.flat();
 
-            console.log(`🆕 Created Google event: ${event.title}`);
-          }
-          // 2. Updated event: Update Google Calendar event
-          else if (cached.lastEditedTime !== event.lastEditedTime) {
-            await calendar.events.update({
-              calendarId: env.GOOGLE_CALENDAR_ID,
-              eventId: cached.googleEventId || '',
-              requestBody: {
-                summary: event.title,
-                start: { dateTime: event.startDate, timeZone: event.timeZone || 'Asia/Shanghai' },
-                end: { dateTime: event.endDate, timeZone: event.timeZone || 'Asia/Shanghai' },
-              },
-            });
+    console.log(allNotionEvents.length)
+    // Get current cache from database
+    const cachedEvents = await db.select().from(eventsTable);
+    console.log(cachedEvents.length)
+    // Handle new, updated, and deleted events
+    for (const [i, event] of allNotionEvents.entries()) {
+      console.log(`⏳ [${i + 1}/${allNotionEvents.length}] Creating event: ${event.title}`);
+      const cached = cachedEvents.find(c => c.id === event.id);
+      // 1. New event: Create Google Calendar event
+      if (!cached) {
+        const gEvent = await calendar.events.insert({
+          calendarId: env.GOOGLE_CALENDAR_ID,
+          requestBody: {
+            summary: event.title,
+            start: { dateTime: event.startDate, timeZone: event.timeZone || 'Asia/Shanghai' },
+            end: { dateTime: event.endDate, timeZone: event.timeZone || 'Asia/Shanghai' },
+          },
+        });
+        console.log(`✅ Google event created: ${event.title}`);
+        await new Promise(res => setTimeout(res, 500)); // 0.5s delay
+        await db.insert(eventsTable).values({
+          id: event.id,
+          title: event.title,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          timeZone: event.timeZone,
+          lastEditedTime: event.lastEditedTime,
+          googleEventId: gEvent.data.id || null
+        });
 
-            await db.update(eventsTable)
-              .set({
-                title: event.title,
-                startDate: event.startDate,
-                endDate: event.endDate,
-                timeZone: event.timeZone,
-                lastEditedTime: event.lastEditedTime
-              })
-              .where(eq(eventsTable.id, event.id));
+        console.log(`🆕 Created Google event: ${event.title}`);
+      }
+      // 2. Updated event: Update Google Calendar event
+      else if (cached.lastEditedTime !== event.lastEditedTime) {
+        await calendar.events.update({
+          calendarId: env.GOOGLE_CALENDAR_ID,
+          eventId: cached.googleEventId || '',
+          requestBody: {
+            summary: event.title,
+            start: { dateTime: event.startDate, timeZone: event.timeZone || 'Asia/Shanghai' },
+            end: { dateTime: event.endDate, timeZone: event.timeZone || 'Asia/Shanghai' },
+          },
+        });
 
-            console.log(`✏️ Updated Google event: ${event.title}`);
-          }
-        }
+        await db.update(eventsTable)
+          .set({
+            title: event.title,
+            startDate: event.startDate,
+            endDate: event.endDate,
+            timeZone: event.timeZone,
+            lastEditedTime: event.lastEditedTime
+          })
+          .where(eq(eventsTable.id, event.id));
 
-        // Handle deleted events (events present in cache but not in Notion)
-        for (const cachedEvent of cachedEvents) {
-          const stillExistsInNotion = allNotionEvents.some(event => event.id === cachedEvent.id);
-
-          if (!stillExistsInNotion && cachedEvent.googleEventId) {
-            await calendar.events.delete({
-              calendarId: env.GOOGLE_CALENDAR_ID,
-              eventId: cachedEvent.googleEventId,
-            });
-
-            await db.delete(eventsTable)
-              .where(eq(eventsTable.id, cachedEvent.id));
-
-            console.log(`❌ Deleted Google event: ${cachedEvent.title}`);
-          }
-        }
-
-        console.log('✅ Sync complete');
-    }catch (error) {
-        console.error('[syncEvents] Error during sync:', error);
-        throw error;
+        console.log(`✏️ Updated Google event: ${event.title}`);
+      }
     }
 
-  
+    // Handle deleted events (events present in cache but not in Notion)
+    for (const cachedEvent of cachedEvents) {
+      const stillExistsInNotion = allNotionEvents.some(event => event.id === cachedEvent.id);
+
+      if (!stillExistsInNotion && cachedEvent.googleEventId) {
+        await calendar.events.delete({
+          calendarId: env.GOOGLE_CALENDAR_ID,
+          eventId: cachedEvent.googleEventId,
+        });
+
+        await db.delete(eventsTable)
+          .where(eq(eventsTable.id, cachedEvent.id));
+
+        console.log(`❌ Deleted Google event: ${cachedEvent.title}`);
+      }
+    }
+
+    console.log('✅ Sync complete');
+  } catch (error) {
+    console.error('[syncEvents] Error during sync:', error);
+    throw error;
+  }
+
+
 }
 
-// Run the sync
-syncEvents().catch(err => {
-  console.error('❌ Sync failed:', err);
-  process.exit(1);
-});
+// // Run the sync
+// syncEvents().catch(err => {
+//   console.error('❌ Sync failed:', err);
+//   process.exit(1);
+// });
