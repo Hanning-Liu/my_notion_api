@@ -8,7 +8,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // Optionally: validate the webhook signature / origin from Notion
-        // For example: check a header or shared secret
+        const event = req.body;
+        console.log('🔔 Received Notion webhook event:', event);
 
         await syncEvents();  // Run your existing sync logic
 
