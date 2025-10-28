@@ -9,3 +9,14 @@ export const eventsTable = sqliteTable("events", {
   lastEditedTime: text("last_edited_time").notNull(), // ISO string
   googleEventId: text("google_event_id") // Nullable
 });
+
+export const googleOAuthTokensTable = sqliteTable("google_oauth_tokens", {
+  userId: text("user_id").primaryKey(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  expiryDate: int("expiry_date", { mode: 'timestamp_ms' }).notNull(), // Stored as milliseconds
+  scope: text("scope").notNull(),
+  tokenType: text("token_type").notNull(),
+  createdAt: int("created_at", { mode: 'timestamp_ms' }).notNull(),
+  updatedAt: int("updated_at", { mode: 'timestamp_ms' }).notNull()
+});
