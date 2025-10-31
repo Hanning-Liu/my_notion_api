@@ -15,6 +15,7 @@ export const googleOAuthTokens = sqliteTable("google_oauth_tokens", {
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token").notNull(),
   expiryDate: int("expiry_date", { mode: 'timestamp_ms' }).notNull(), // Stored as milliseconds
+  refreshTokenExpiry: int("refresh_token_expiry", { mode: 'timestamp_ms' }).notNull(),
   scope: text("scope").notNull(),
   tokenType: text("token_type").notNull(),
   createdAt: int("created_at", { mode: 'timestamp_ms' }).notNull(),

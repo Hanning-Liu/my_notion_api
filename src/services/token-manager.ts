@@ -11,6 +11,7 @@ type TokenRow = {
     accessToken: string;
     refreshToken: string;
     expiryDate: number; // ms
+    refreshTokenExpiry: number; // ms
     scope: string;
     tokenType: string;
     createdAt: number;
@@ -25,12 +26,14 @@ export function createTokenManager(tursoUrl: string, authToken: string) {
         // initialize token row for the first time (use this from init script)
         async initToken(userId: string, tokenResponse: any) {
             const now = Date.now();
-            const expiryMs = (tokenResponse.expires_in ? now + tokenResponse.expires_in * 1000 : now + 3600 * 1000);
+            const accessTokenExpiryMs = tokenResponse.expiry_date;
+            const refreshTokenExpiryMs = tokenResponse.refresh_token_expires_in;
             const row: TokenRow = {
                 userId,
                 accessToken: tokenResponse.access_token,
                 refreshToken: tokenResponse.refresh_token,
-                expiryDate: expiryMs,
+                expiryDate: accessTokenExpiryMs,
+                refreshTokenExpiry: refreshTokenExpiryMs,
                 scope: tokenResponse.scope || '',
                 tokenType: tokenResponse.token_type || 'Bearer',
                 createdAt: now,
@@ -54,6 +57,7 @@ export function createTokenManager(tursoUrl: string, authToken: string) {
                 await db.insert(googleOAuthTokens).values({
                     ...row,
                     expiryDate: sql`${row.expiryDate}`,
+                    refreshTokenExpiry: sql`${row.refreshTokenExpiry}`,
                     createdAt: sql`${row.createdAt}`,
                     updatedAt: sql`${row.updatedAt}`,
                 });
@@ -75,6 +79,7 @@ export function createTokenManager(tursoUrl: string, authToken: string) {
             return {
                 ...row,
                 expiryDate: Number(row.expiryDate),
+                refreshTokenExpiry: Number(row.refreshTokenExpiry),
                 createdAt: Number(row.createdAt),
                 updatedAt: Number(row.updatedAt),
             };

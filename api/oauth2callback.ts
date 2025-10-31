@@ -8,11 +8,11 @@ import { createTokenManager } from '../src/services/token-manager';
 
 // Define environment variable schema
 const envSchema = z.object({
-    NOTION_API_KEY: z.string(),
     GOOGLE_CLIENT_ID: z.string(),
     GOOGLE_CLIENT_SECRET: z.string(),
     TURSO_DATABASE_URL: z.string(),
     TURSO_AUTH_TOKEN: z.string(),
+    GOOGLE_REDIRECT_URI: z.string(),
 });
 
 // Parse and validate environment variables
@@ -27,12 +27,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Missing authorization code' });
         }
 
-        const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI } = process.env;
-
         const oauth2Client = new google.auth.OAuth2(
-            GOOGLE_CLIENT_ID,
-            GOOGLE_CLIENT_SECRET,
-            GOOGLE_REDIRECT_URI
+            env.GOOGLE_CLIENT_ID,
+            env.GOOGLE_CLIENT_SECRET,
+            env.GOOGLE_REDIRECT_URI
         );
 
         // Exchange code for tokens
