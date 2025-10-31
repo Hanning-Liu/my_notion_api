@@ -7,14 +7,14 @@ import { createClient } from '@libsql/client';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { eventsTable } from './db/schema';
-
+import { createTokenManager } from './services/token-manager';
 
 // Define environment variable schema
 const envSchema = z.object({
   NOTION_API_KEY: z.string(),
   GOOGLE_CLIENT_ID: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),
-  GOOGLE_REFRESH_TOKEN: z.string(),
+  // GOOGLE_REFRESH_TOKEN: z.string(),
   TURSO_DATABASE_URL: z.string(),
   TURSO_AUTH_TOKEN: z.string(),
   GOOGLE_CALENDAR_ID: z.string(),
@@ -26,6 +26,7 @@ const envSchema = z.object({
   DATASOURCE_ID_5: z.string().optional(),
   DATASOURCE_ID_6: z.string().optional(),
   DATASOURCE_ID_7: z.string().optional(),
+  DATASOURCE_ID_8: z.string().optional(),
 });
 
 // Parse and validate environment variables
@@ -42,10 +43,6 @@ const oauth2Client = new google.auth.OAuth2(
   env.GOOGLE_CLIENT_SECRET
 );
 
-oauth2Client.setCredentials({
-  refresh_token: env.GOOGLE_REFRESH_TOKEN
-});
-
 const calendar = google.calendar({
   version: 'v3',
 });
@@ -57,6 +54,17 @@ const client = createClient({
 });
 
 const db = drizzle({ client });
+
+// Token manager instance
+const tokenManager = createTokenManager(env.TURSO_DATABASE_URL, env.TURSO_AUTH_TOKEN);
+
+// helper to ensure oauth2Client has fresh tokens for the service user
+async function prepareAuthForUser(userId = 'service-sync') {
+  // set current creds from DB and refresh if needed
+  await tokenManager.refreshIfNeeded(userId, oauth2Client);
+  // oauth2Client now has valid credentials (or will throw on error)
+  return oauth2Client;
+}
 
 interface NotionEvent {
   id: string;
@@ -125,23 +133,26 @@ const notionDataSourceIds = [
   env.DATASOURCE_ID_5,
   env.DATASOURCE_ID_6,
   env.DATASOURCE_ID_7,
+  env.DATASOURCE_ID_8,
 ].filter((id): id is string => !!id); // Remove undefined values
 
 export async function syncEvents() {
-  // Fetch events from all data sources concurrently
   try {
+    // ✅ Ensure tokens are valid once before any Google API call
+    await prepareAuthForUser('service-sync');
+
     const notionEvents = await Promise.all(
       notionDataSourceIds.map(fetchNotionEvents)
     );
-    // Flatten the array of events from multiple data sources
     const allNotionEvents = notionEvents.flat();
 
-    // Get current cache from database
     const cachedEvents = await db.select().from(eventsTable);
-    // Handle new, updated, and deleted events
-    for (const [i, event] of allNotionEvents.entries()) {
+
+    // ✅ Handle new & updated events
+    for (const event of allNotionEvents) {
       const cached = cachedEvents.find(c => c.id === event.id);
-      // 1. New event: Create Google Calendar event
+
+      // 1. New event
       if (!cached) {
         const gEvent = await calendar.events.insert({
           auth: oauth2Client,
@@ -152,7 +163,7 @@ export async function syncEvents() {
             end: { dateTime: event.endDate, timeZone: event.timeZone || 'Asia/Shanghai' },
           },
         });
-        await new Promise(res => setTimeout(res, 500)); // 0.5s delay
+
         await db.insert(eventsTable).values({
           id: event.id,
           title: event.title,
@@ -165,12 +176,16 @@ export async function syncEvents() {
 
         console.log(`🆕 Created Google event: ${event.title}`);
       }
-      // 2. Updated event: Update Google Calendar event
+
+      // 2. Updated event
       else if (cached.lastEditedTime !== event.lastEditedTime) {
+        const gEventId = cached.googleEventId;
+        if (!gEventId) continue;
+
         await calendar.events.update({
           auth: oauth2Client,
           calendarId: env.GOOGLE_CALENDAR_ID,
-          eventId: cached.googleEventId || '',
+          eventId: gEventId,
           requestBody: {
             summary: event.title,
             start: { dateTime: event.startDate, timeZone: event.timeZone || 'Asia/Shanghai' },
@@ -192,11 +207,10 @@ export async function syncEvents() {
       }
     }
 
-    // Handle deleted events (events present in cache but not in Notion)
+    // ✅ Handle deleted events (only need token once)
     for (const cachedEvent of cachedEvents) {
-      const stillExistsInNotion = allNotionEvents.some(event => event.id === cachedEvent.id);
-
-      if (!stillExistsInNotion && cachedEvent.googleEventId) {
+      const stillExists = allNotionEvents.some(e => e.id === cachedEvent.id);
+      if (!stillExists && cachedEvent.googleEventId) {
         await calendar.events.delete({
           auth: oauth2Client,
           calendarId: env.GOOGLE_CALENDAR_ID,
@@ -215,9 +229,8 @@ export async function syncEvents() {
     console.error('[syncEvents] Error during sync:', error);
     throw error;
   }
-
-
 }
+
 
 // // Run the sync
 // syncEvents().catch(err => {

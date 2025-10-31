@@ -10,7 +10,7 @@ export const eventsTable = sqliteTable("events", {
   googleEventId: text("google_event_id") // Nullable
 });
 
-export const googleOAuthTokensTable = sqliteTable("google_oauth_tokens", {
+export const googleOAuthTokens = sqliteTable("google_oauth_tokens", {
   userId: text("user_id").primaryKey(),
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token").notNull(),
