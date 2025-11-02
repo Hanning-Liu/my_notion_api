@@ -1,1 +1,0 @@
-ALTER TABLE `google_oauth_tokens` ADD `refresh_token_expiry` integer NOT NULL;
