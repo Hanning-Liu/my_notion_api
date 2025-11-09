@@ -142,3 +142,6 @@ vite.config.ts.timestamp-*
 
 # drizzle-ORM generated files
 drizzle/
+
+# macOS
+.DS_Store
